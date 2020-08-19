@@ -16,12 +16,17 @@
 //   })
 // }
 
+let renderStart,
+  renderEnd,
+  uploadingStart,
+  uplodingEnd = null;
+
 const pages = [];
 const heights = [];
 let width = 0;
 let height = 0;
 let currentPage = 1;
-var scale = 1.5;
+var scale = 1;
 
 function getCanvasBlob(canvas) {
   return new Promise(function (resolve, reject) {
@@ -34,7 +39,9 @@ function getCanvasBlob(canvas) {
 
 async function draw() {
   const header = document.createElement("h1");
+  const info = document.createElement("h1");
   document.body.appendChild(header);
+  document.body.appendChild(info);
   header.innerText = "Converting";
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -53,26 +60,32 @@ async function draw() {
   const blobArr = await Promise.all(canvas2BlobPromises);
   header.innerText = "Uploading";
   blobArr.map((blob, i) => uploads.push(uploadPromise(blob, i)));
+  blobArr.map((blob) => {
+    const downloadLink = document.createElement("a");
+    const newImg = document.createElement("img");
+    const url = URL.createObjectURL(blob);
+    newImg.src = url;
+    downloadLink.href = url;
+    downloadLink.setAttribute("download", "");
+    document.body.appendChild(downloadLink);
+    downloadLink.appendChild(newImg);
+  });
+  renderEnd = performance.now();
+  info.innerText = `Render time: ` + (renderEnd - renderStart);
+
+  uploadingStart = performance.now();
   await Promise.all(uploads);
   header.innerText = "Done uploading";
   console.log("Done uploading all images");
-  document.body.appendChild(canvas);
-  // blobArr.map((blob) => {
-  //   const downloadLink = document.createElement("a");
-  //   const newImg = document.createElement("img");
-  //   const url = URL.createObjectURL(blob);
-  //   newImg.src = url;
-  //   downloadLink.href = url;
-  //   downloadLink.setAttribute("download", "");
-  //   document.body.appendChild(downloadLink);
-  //   downloadLink.appendChild(newImg);
-  // });
+  uplodingEnd = performance.now();
+  info.innerText += `\n Upload time:` + (uplodingEnd - uploadingStart);
+  // document.body.appendChild(canvas);
 
   // console.log(n);
 }
 
 function uploadPromise(blob, i) {
-  const imgFile = new File([blob], i, { type: blob.type });
+  const imgFile = new File([blob], i);
   const formData = new FormData();
   formData.append("image", imgFile);
   return new Promise((resolve, reject) => {
@@ -93,6 +106,7 @@ function uploadPromise(blob, i) {
 }
 
 function getPage(pdf) {
+  renderStart = performance.now();
   pdf.getPage(currentPage).then(function (page) {
     var viewport = page.getViewport({ scale, dontFlip: false });
     var canvas = document.createElement("canvas"),
@@ -101,6 +115,7 @@ function getPage(pdf) {
 
     canvas.height = viewport.height;
     canvas.width = viewport.width;
+    console.log(viewport, page);
     page.render(renderContext).promise.then(function () {
       pages.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
 
@@ -124,7 +139,7 @@ function handleUpload(event) {
   fileReader.readAsArrayBuffer(file);
   fileReader.onload = () => {
     const typedArray = new Uint8Array(fileReader.result);
-    console.log(typedArray);
+    // console.log(typedArray);
     pdfjsLib.getDocument(typedArray).promise.then((pdf) => {
       getPage(pdf);
     });
