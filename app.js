@@ -53,7 +53,7 @@ app.post("/uploadImage", function (req, res) {
   }
   const imageFile = req.files.image;
   console.log(req.files);
-  imageFile.mv(`./images/${imageFile.name}.png`, (err) => {
+  imageFile.mv(`./public/images/${imageFile.name}.png`, (err) => {
     if (err) return res.status(500).send(err);
     res.json({ message: "Done" });
   });
